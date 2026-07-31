@@ -8,7 +8,6 @@ class Settings(BaseSettings):
     # API 기본 설정
     app_name: str = "MyCup API"
     debug: bool = True
-    secret_key: str
     
     # Database
     database_url: str

@@ -73,8 +73,9 @@ async def upload_photos(
         photos=[
             PhotoResponse(
                 id=photo.id,
-                filename=photo.filename,
                 url=photo.url,
+                thumbnail_url=photo.thumbnail_url,
+                file_size=photo.file_size,
                 uploaded_at=photo.uploaded_at
             ) for photo in uploaded_photos
         ],

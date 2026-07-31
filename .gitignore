@@ -11,9 +11,17 @@ wheels/
 
 # Environment variables
 .env
+.env.*
+!.env.example
 
 # 명세
 docs/
 
 # Uploaded files
 uploads/
+
+# Runtime logs
+logs/*.log
+
+# OS files
+.DS_Store

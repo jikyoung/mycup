@@ -41,7 +41,7 @@ class WorldcupResponse(BaseModel):
 
 class MatchSelectRequest(BaseModel):
     """매치 선택 요청"""
-    winner_photo_id: str
+    selected_photo_id: str
 
 class RankingPhoto(BaseModel):
     """순위별 사진"""

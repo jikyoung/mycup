@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.config import settings
-from app.api.routes import auth, photos, worldcup, share
+from app.api.routes import auth, photos, worldcup, share, users
 from app.core.logging_middleware import log_requests
 from app.core.logger import logger
 from starlette.middleware.sessions import SessionMiddleware
@@ -64,6 +64,7 @@ app.include_router(auth.router)
 app.include_router(photos.router)
 app.include_router(worldcup.router)
 app.include_router(share.router)
+app.include_router(users.router)
 
 # 정적 파일 서빙
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

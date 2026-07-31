@@ -78,6 +78,54 @@ def get_public_worldcups(
         "pages": (total + limit - 1) // limit
     }
 
+@router.get("/my")
+def get_my_worldcups(
+    skip: int = 0,
+    limit: int = 20,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """내 월드컵 목록 조회"""
+
+    worldcups = db.query(Worldcup)\
+        .filter(Worldcup.user_id == current_user.id)\
+        .order_by(Worldcup.created_at.desc())\
+        .offset(skip)\
+        .limit(limit)\
+        .all()
+
+    total = db.query(Worldcup)\
+        .filter(Worldcup.user_id == current_user.id)\
+        .count()
+
+    # 각 월드컵의 우승 사진 정보 포함
+    result = []
+    for wc in worldcups:
+        winner_photo = None
+        if wc.winner_photo_id:
+            winner_photo = db.query(Photo)\
+                .filter(Photo.id == wc.winner_photo_id)\
+                .first()
+
+        result.append({
+            "id": wc.id,
+            "round_type": wc.round_type,
+            "status": wc.status,
+            "winner_photo": {
+                "id": winner_photo.id,
+                "url": winner_photo.url
+            } if winner_photo else None,
+            "created_at": wc.created_at,
+            "completed_at": wc.completed_at
+        })
+
+    return {
+        "worldcups": result,
+        "total": total,
+        "page": (skip // limit) + 1,
+        "pages": (total + limit - 1) // limit
+    }
+
 @router.get("/limit")
 def get_worldcup_limit(
     current_user: User = Depends(get_current_user),
@@ -182,14 +230,14 @@ def select_winner(
         )
     
     # 승자가 이 매치의 사진 중 하나인지 확인
-    if data.winner_photo_id not in [match.photo_a_id, match.photo_b_id]:
+    if data.selected_photo_id not in [match.photo_a_id, match.photo_b_id]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="유효하지 않은 사진입니다"
         )
     
     # 승자 저장
-    match.winner_photo_id = data.winner_photo_id
+    match.winner_photo_id = data.selected_photo_id
     db.commit()
     
     # 다음 라운드 진행
@@ -615,3 +663,73 @@ def get_vote_stats(
         "total_votes": len(votes),
         "photo_stats": list(photo_stats.values())
     }
+
+
+@router.get("/{worldcup_id}")
+def get_worldcup(
+    worldcup_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """월드컵 상세 조회 (진행중 월드컵 재개용)"""
+
+    worldcup = db.query(Worldcup).filter(Worldcup.id == worldcup_id).first()
+    if not worldcup:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="월드컵을 찾을 수 없습니다"
+        )
+
+    if worldcup.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="권한이 없습니다"
+        )
+
+    # 현재 진행중인 매치 가져오기
+    current_match = worldcup_service.get_next_match(db, worldcup_id)
+
+    return WorldcupResponse(
+        id=worldcup.id,
+        round_type=worldcup.round_type,
+        status=worldcup.status,
+        current_match=MatchResponse(
+            id=current_match.id,
+            round_number=current_match.round_number,
+            match_order=current_match.match_order,
+            photo_a=PhotoInMatch(id=current_match.photo_a.id, url=current_match.photo_a.url),
+            photo_b=PhotoInMatch(id=current_match.photo_b.id, url=current_match.photo_b.url),
+            winner_photo_id=None
+        ) if current_match else None,
+        created_at=worldcup.created_at
+    )
+
+@router.delete("/{worldcup_id}")
+def delete_worldcup(
+    worldcup_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """월드컵 삭제"""
+
+    worldcup = db.query(Worldcup).filter(Worldcup.id == worldcup_id).first()
+    if not worldcup:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="월드컵을 찾을 수 없습니다"
+        )
+
+    if worldcup.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="권한이 없습니다"
+        )
+
+    # 관련 매치들 삭제
+    db.query(Match).filter(Match.worldcup_id == worldcup_id).delete()
+
+    # 월드컵 삭제
+    db.delete(worldcup)
+    db.commit()
+
+    return {"message": "삭제되었습니다"}

@@ -1,7 +1,7 @@
 [project]
 name = "mycup"
 version = "0.1.0"
-description = "Add your description here"
+description = "AI photo tournament mobile app with React Native and FastAPI"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
